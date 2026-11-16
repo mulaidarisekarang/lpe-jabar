@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laju Pertumbuhan Ekonomi Jawa Barat</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f4f7f8;--surf:#fff;--ink:#12343b;--mute:#5b7076;--line:#d8e2e5;--pos:30,140,110;--neg:205,90,40;--acc:#1e8c6e}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1b1e;--surf:#162428;--ink:#e3eef0;--mute:#8aa3a9;--line:#27393d;--pos:60,190,150;--neg:240,120,70;--acc:#4cc9a2}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Figtree,system-ui,sans-serif}
+h1,h2,.big{font-family:"Bricolage Grotesque",Figtree,sans-serif;letter-spacing:-.02em;margin:0}
+main{max-width:1100px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;justify-content:space-between;margin-bottom:24px}
+h1{font-size:clamp(26px,4vw,40px);line-height:1.1;max-width:15ch}
+.hero{text-align:right}.big{font-size:clamp(48px,9vw,84px);line-height:1;font-weight:700;color:var(--acc)}
+.hero small{display:block;color:var(--mute)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surf)}
+.seg button,select{font:inherit;color:var(--ink);background:none;border:0;padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+select{border:1px solid var(--line);border-radius:8px;background:var(--surf)}
+button:focus-visible,select:focus-visible,tr:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
+.card h2{font-size:18px;margin-bottom:8px}
+svg{width:100%;height:auto;display:block}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surf)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13px}
+th,td{padding:7px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--mute);position:sticky;top:0;background:var(--surf)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--surf);min-width:230px;max-width:280px;white-space:normal}
+tbody tr{cursor:pointer}tbody tr.sel td:first-child{box-shadow:inset 3px 0 var(--acc);font-weight:600}
+tr.tot td{font-weight:600;border-top:2px solid var(--ink)}
+th.ann,td.ann{border-left:1px solid var(--line)}
+.foot{color:var(--mute);font-size:13px;margin-top:14px}
+#err{color:rgb(var(--neg))}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Laju Pertumbuhan Ekonomi Jawa Barat</h1>
+  <div class="hero"><div class="big" id="kpi">–</div><small id="kpiLbl"></small></div>
+</header>
+<div class="bar">
+  <div class="seg" id="grp" role="group" aria-label="Kelompok data">
+    <button data-g="lu" aria-pressed="true">Lapangan Usaha</button>
+    <button data-g="pg" aria-pressed="false">Pengeluaran</button>
+    <button data-g="kab" aria-pressed="false">Kabupaten/Kota</button>
+  </div>
+  <div class="seg" id="mode" role="group" aria-label="Basis perhitungan">
+    <button data-m="y" aria-pressed="true">y-to-y</button>
+    <button data-m="q" aria-pressed="false">q-to-q</button>
+  </div>
+  <label>Periode <select id="span"><option value="8">8 triwulan terakhir</option><option value="16">16 triwulan terakhir</option><option value="999">Semua</option></select></label>
+</div>
+<p id="err" role="alert"></p>
+<section class="card"><h2 id="ct"></h2><div id="chart"></div></section>
+<div class="tw"><table id="tbl"></table></div>
+<p class="foot" id="foot"></p>
+</main>
+<script>
+const NAMES={lu:"Lapangan usaha",pg:"Komponen pengeluaran",kab:"Kabupaten/kota"};
+const st={g:"lu",m:"y",span:8,sel:null};let D;
+const $=s=>document.querySelector(s);
+const lbl=k=>{const[y,q]=k.split("-");return q==="T"?`Tahunan ${y}`:`Tw ${q[1]} ${y}`};
+const fmt=v=>v==null?"–":v.toFixed(2).replace(".",",");
+function blk(){return D[st.g][st.m]}
+function isTot(r){return /PDRB|LPE/.test(r.nama)}
+function cell(v){if(v==null)return"";const a=Math.min(Math.abs(v)/10,1)*.55;return`background:rgba(${v>=0?"var(--pos)":"var(--neg)"},${a.toFixed(2)})`}
+function latest(b){const r=b.rows.find(isTot)||b.rows[0];
+  for(let i=b.periods.length-1;i>=0;i--){if(r.v[i]!=null&&!b.periods[i].endsWith("T"))return{v:r.v[i],k:b.periods[i],n:r.nama}}}
+function render(){
+  const b=blk(),idx=[];
+  b.periods.forEach((p,i)=>idx.push(i));
+  const qs=idx.filter(i=>!b.periods[i].endsWith("T"));
+  const keepQ=new Set(qs.slice(-st.span));
+  const show=idx.filter(i=>keepQ.has(i)||(b.periods[i].endsWith("T")&&keepQ.has(i-1)));
+  const rows=b.rows;if(!st.sel||!rows.some(r=>r.nama===st.sel))st.sel=(rows.find(isTot)||rows[0]).nama;
+  $("#tbl").innerHTML="<thead><tr><th>"+NAMES[st.g]+"</th>"+show.map(i=>`<th class="${b.periods[i].endsWith("T")?"ann":""}">${lbl(b.periods[i])}</th>`).join("")+"</tr></thead><tbody>"+
+    rows.map(r=>`<tr tabindex="0" class="${isTot(r)?"tot ":""}${r.nama===st.sel?"sel":""}" data-n="${r.nama.replace(/"/g,"&quot;")}"><td>${r.nama}</td>`+show.map(i=>`<td class="${b.periods[i].endsWith("T")?"ann":""}" style="${cell(r.v[i])}">${fmt(r.v[i])}</td>`).join("")+"</tr>").join("")+"</tbody>";
+  const L=latest(b);
+  if(L){$("#kpi").textContent=fmt(L.v)+"%";$("#kpiLbl").textContent=`${L.n}, ${lbl(L.k)} (${st.m==="y"?"y-to-y":"q-to-q"})`}
+  chart(b,qs);
+  $("#foot").textContent=`Sumber: ${D.sumber}. Data diperbarui ${D.updated}. Klik baris untuk melihat grafiknya. Warna: hijau = tumbuh, jingga = kontraksi.`;
+}
+function chart(b,qs){
+  const r=b.rows.find(x=>x.nama===st.sel);$("#ct").textContent=`${st.sel} (${st.m==="y"?"y-to-y":"q-to-q"}, %)`;
+  const pts=qs.map(i=>({k:b.periods[i],v:r.v[i]})).filter(p=>p.v!=null);
+  if(pts.length<2){$("#chart").innerHTML="<p>Data belum cukup.</p>";return}
+  const W=900,H=280,m={l:44,r:12,t:12,b:28};
+  const vs=pts.map(p=>p.v),lo=Math.min(0,...vs),hi=Math.max(0,...vs),pad=(hi-lo)*.08||1;
+  const x=i=>m.l+i*(W-m.l-m.r)/(pts.length-1),y=v=>m.t+(hi+pad-v)*(H-m.t-m.b)/(hi-lo+2*pad);
+  const step=Math.ceil((hi-lo)/5),ticks=[];for(let t=Math.floor(lo/step)*step;t<=hi+pad;t+=step)ticks.push(t);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik ${st.sel}">`;
+  ticks.forEach(t=>s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t===0?'stroke-width="1.6" stroke-dasharray="0"':'stroke-dasharray="3 4"'}/><text x="${m.l-6}" y="${y(t)+4}" text-anchor="end" font-size="11" fill="var(--mute)">${t}</text>`);
+  pts.forEach((p,i)=>{if(p.k.endsWith("Q1"))s+=`<text x="${x(i)}" y="${H-8}" font-size="11" text-anchor="middle" fill="var(--mute)">${p.k.slice(0,4)}</text>`});
+  s+=`<polyline fill="none" stroke="var(--acc)" stroke-width="2.2" points="${pts.map((p,i)=>x(i)+","+y(p.v)).join(" ")}"/>`;
+  pts.forEach((p,i)=>s+=`<circle cx="${x(i)}" cy="${y(p.v)}" r="${pts.length>20?3:4.5}" fill="${p.v>=0?"var(--acc)":"rgb(var(--neg))"}"><title>${lbl(p.k)}: ${fmt(p.v)}%</title></circle>`);
+  $("#chart").innerHTML=s+"</svg>";
+}
+function bind(id,attr,key,cast){$(id).addEventListener("click",e=>{const v=e.target.dataset[attr];if(!v)return;st[key]=v;$(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===e.target));st.sel=null;render()})}
+bind("#grp","g","g");bind("#mode","m","m");
+$("#span").onchange=e=>{st.span=+e.target.value;render()};
+const pick=e=>{const tr=e.target.closest("tbody tr");if(tr){st.sel=tr.dataset.n;render();scrollTo({top:0,behavior:"smooth"})}};
+$("#tbl").addEventListener("click",pick);
+$("#tbl").addEventListener("keydown",e=>{if(e.key==="Enter")pick(e)});
+fetch("data.json?"+Date.now()).then(r=>r.json()).then(j=>{D=j;render()}).catch(()=>{$("#err").textContent="Gagal memuat data.json. Jalankan lewat server (python3 -m http.server), jangan dibuka langsung dari file."});
+</script>
+</body>
+</html>

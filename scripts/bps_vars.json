@@ -1,0 +1,12 @@
+{
+  "domain": "3200",
+  "_catatan": "Isi 'var' dengan ID variabel dari WebAPI BPS (lihat README). Dataset yang var-nya masih 0 dilewati.",
+  "datasets": {
+    "lu.y":  {"var": 0},
+    "lu.q":  {"var": 0},
+    "pg.y":  {"var": 0},
+    "pg.q":  {"var": 0},
+    "kab.y": {"var": 0},
+    "kab.q": {"var": 0}
+  }
+}
